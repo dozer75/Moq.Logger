@@ -1,0 +1,58 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.7.34003.232
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{93D16AD1-B454-44E9-BA15-4B7BDE6AA4DA}"
+	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
+		.gitattributes = .gitattributes
+		.gitignore = .gitignore
+		CONTRIBUTING.md = CONTRIBUTING.md
+		LICENSE.txt = LICENSE.txt
+		NuGet.config = NuGet.config
+		README.md = README.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{37595B10-9888-488B-97B5-9F7028240A20}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "test", "test", "{81297264-03F8-4A86-9237-5AE84E3C4D28}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Moq.Logger", "src\Moq.Logger\Moq.Logger.csproj", "{6DF0F66B-8C62-4E0F-8713-6E10A77D5C4A}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Moq.Logger.Test", "test\Moq.Logger.Test\Moq.Logger.Test.csproj", "{3CC0969A-D4C9-43B3-ABF1-0F1B481927A8}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "workflows", "workflows", "{91CBDD7E-A44A-44AC-B135-6B8BD2968E64}"
+	ProjectSection(SolutionItems) = preProject
+		.github\workflows\master-pr.yml = .github\workflows\master-pr.yml
+		.github\workflows\master-publish.yml = .github\workflows\master-publish.yml
+		.github\workflows\master-push.yml = .github\workflows\master-push.yml
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{6DF0F66B-8C62-4E0F-8713-6E10A77D5C4A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6DF0F66B-8C62-4E0F-8713-6E10A77D5C4A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6DF0F66B-8C62-4E0F-8713-6E10A77D5C4A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6DF0F66B-8C62-4E0F-8713-6E10A77D5C4A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3CC0969A-D4C9-43B3-ABF1-0F1B481927A8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3CC0969A-D4C9-43B3-ABF1-0F1B481927A8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3CC0969A-D4C9-43B3-ABF1-0F1B481927A8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3CC0969A-D4C9-43B3-ABF1-0F1B481927A8}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{6DF0F66B-8C62-4E0F-8713-6E10A77D5C4A} = {37595B10-9888-488B-97B5-9F7028240A20}
+		{3CC0969A-D4C9-43B3-ABF1-0F1B481927A8} = {81297264-03F8-4A86-9237-5AE84E3C4D28}
+		{91CBDD7E-A44A-44AC-B135-6B8BD2968E64} = {93D16AD1-B454-44E9-BA15-4B7BDE6AA4DA}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {512B266F-80C2-47E9-8477-C42328F6B769}
+	EndGlobalSection
+EndGlobal
