@@ -1,6 +1,5 @@
 // Copyright © 2023 Rune Gulbrandsen.
-// All rights reserved. Licensed under the MIT License; see License.txt.
-
+// All rights reserved. Licensed under the MIT License; see LICENSE.txt.
 using System;
 using System.Diagnostics.CodeAnalysis;
 using FluentAssertions;
@@ -158,6 +157,79 @@ namespace KISS.Moq.Logger.Test
             mock.Object.Log(LogLevel.Debug, "Hello {You}", "World");
 
             mock.VerifyExt(l => l.Log(LogLevel.Debug, "Hello {You}", "World"));
+        }
+
+        [Fact]
+        public void TestVerifyExtUsingMessageOnly()
+        {
+            Mock<ILogger> mock = new();
+
+            Uri url = new("https://some.url/");
+
+            int value = 10;
+
+            mock.Object.LogInformation("I want to log the number {Number}", value);
+
+            mock.VerifyExt(l => l.LogInformation("I want to log the number 10"));
+        }
+
+        [Fact]
+        public void TestVerifyExtUsingValueTypeAsParameter()
+        {
+            Mock<ILogger> mock = new();
+
+            int value = 10;
+
+            mock.Object.LogInformation("I want to log the number {Number}", value);
+
+            mock.VerifyExt(l => l.LogInformation("I want to log the number {Number}", value));
+        }
+
+        [Fact]
+        public void TestVerifyExtUsingReferenceTypeAsParameters()
+        {
+            Mock<ILogger> mock = new();
+
+            Uri url = new("https://some.url/");
+
+            mock.Object.LogInformation("This is the url {Url}", url);
+
+            mock.VerifyExt(l => l.LogInformation("This is the url {Url}", url));
+        }
+
+        [Fact]
+        public void TestVerifyExtThrowsMockExceptionWithExtensionName()
+        {
+            Mock<ILogger> mock = new();
+
+            Uri url = new("https://some.url/");
+
+            mock.Object.LogInformation("This is the url {Url}", url);
+
+            Action act = () => mock.VerifyExt(l => l.LogInformation("This is the url {Url}", "https://someother.url/"), Times.Once());
+
+            act.Should().Throw<MockException>().WithMessage("*LogInformation*");
+        }
+
+        [Fact]
+        public void TestVerifyExtHonorsTimesConstraint()
+        {
+            Mock<ILogger> mock = new();
+
+            mock.Object.LogInformation("Hello World!");
+            mock.Object.LogInformation("Hello World!");
+
+            Action act = () => mock.VerifyExt(l => l.LogInformation("Hello World!"), Times.Exactly(1));
+
+            act.Should().Throw<MockException>().WithMessage("*on the mock exactly 1 times, but was 2 times*");
+        }
+
+        [Fact]
+        public void TestVerifyExtAddsFailMessageToMockException()
+        {
+            Action act = () => new Mock<ILogger>().VerifyExt(l => l.LogInformation("Hello World!"), "This is a custom fail message.");
+
+            act.Should().Throw<MockException>().WithMessage("This is a custom fail message.*");
         }
     }
 }

@@ -1,6 +1,5 @@
 // Copyright © 2023 Rune Gulbrandsen.
-// All rights reserved. Licensed under the MIT License; see License.txt.
-
+// All rights reserved. Licensed under the MIT License; see LICENSE.txt.
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -9,7 +8,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using KISS.Moq.Logger.Reflection;
+using KISS.Moq.Logger.Internals;
 using Microsoft.Extensions.Logging;
 using Moq;
 
@@ -169,11 +168,24 @@ namespace KISS.Moq.Logger
             }
             else if (method.Name == nameof(LoggerExtensions.BeginScope))
             {
-                mock.Verify(BuildBeginScopeExpression(expression), times, failMessage);
+                mock.VerifyWithExceptionHandling(FormattedLogValuesHelpers.BeginScopeMatch<TLogger>(expression.Parameters.Single(),
+                                                                                                    CreateFormattedLogValues(expression)),
+                                                 times, failMessage, expression);
             }
             else if (method.Name.StartsWith("Log", StringComparison.Ordinal))
             {
-                mock.Verify(BuildLogExpression(expression), times, failMessage);
+                var methodCallExpression = (MethodCallExpression)expression.Body;
+
+                Expression[] parameters = methodCallExpression.Arguments.Skip(1).ToArray();
+
+                Expression logLevel = GetLogLevelExpressionFromMethodName(methodCallExpression.Method.Name) ?? parameters.First();
+                Expression? eventId = GetExistingParameterExpression(parameters, typeof(EventId));
+                Expression formattedLogValues = CreateFormattedLogValues(expression);
+                Expression? exception = GetExistingParameterExpression(parameters, typeof(Exception));
+
+                mock.VerifyWithExceptionHandling(FormattedLogValuesHelpers.LogMatch<TLogger>(expression.Parameters.Single(), logLevel, eventId,
+                                                                                             formattedLogValues, exception),
+                                                 times, failMessage, expression);
             }
             else
             {
@@ -181,79 +193,18 @@ namespace KISS.Moq.Logger
             }
         }
 
-        private static Expression<Action<TLogger>> BuildBeginScopeExpression<TLogger>(Expression<Action<TLogger>> expression)
-            where TLogger : class, ILogger
-        {
-            return Expression.Lambda<Action<TLogger>>(Expression.Call(expression.Parameters.Single(), Methods.BeginScopeFormattedLogValues,
-                                                                      BuildFormattedLogValuesExpression(expression)),
-                                                      expression.Parameters);
-        }
-
-        private static NewExpression BuildFormattedLogValuesExpression<TLogger>(Expression<Action<TLogger>> expression)
+        private static NewExpression CreateFormattedLogValues<TLogger>(Expression<Action<TLogger>> expression)
             where TLogger : class, ILogger
         {
             var methodCallExpression = (MethodCallExpression)expression.Body;
 
             ReadOnlyCollection<Expression> methodArguments = methodCallExpression.Arguments;
 
-            IEnumerable<Expression> formattedLogArguments = methodArguments.Skip(methodArguments.Count - 2);
+            Expression[] formattedLogArguments = methodArguments.Skip(methodArguments.Count - 2).ToArray();
 
-            NoItLogicAllowedExpressionVisitor.Visit(methodCallExpression.Method.Name, formattedLogArguments.ToArray());
+            NoItLogicAllowedExpressionVisitor.Visit(methodCallExpression.Method.Name, formattedLogArguments);
 
-            NewExpression formattedLogValues = Expression.New(Constructors.FormattedLogValuesConstructorInfo,
-                                                              formattedLogArguments);
-            return formattedLogValues;
-        }
-
-        private static Expression<Action<TLogger>> BuildLogExpression<TLogger>(Expression<Action<TLogger>> expression)
-            where TLogger : class, ILogger
-        {
-            return Expression.Lambda<Action<TLogger>>(Expression.Call(expression.Parameters.Single(), Methods.LogFormattedLogValues,
-                                                                      BuildLogParameterExpressions(expression)),
-                                                      expression.Parameters);
-        }
-
-        private static Expression[] BuildLogParameterExpressions<TLogger>(Expression<Action<TLogger>> expression)
-            where TLogger : class, ILogger
-        {
-            var methodCallExpression = (MethodCallExpression)expression.Body;
-
-            List<Expression> logParameters = new();
-
-            Expression[] parameters = methodCallExpression.Arguments.Skip(1).ToArray();
-
-            foreach (ParameterInfo parameterInfo in Methods.LogFormattedLogValues.GetParameters())
-            {
-                if (parameterInfo.ParameterType == typeof(LogLevel))
-                {
-                    logParameters.Add(GetLogLevelExpressionFromMethodName(methodCallExpression.Method.Name) ?? parameters.First());
-                }
-                else if (parameterInfo.ParameterType == typeof(EventId))
-                {
-                    logParameters.Add(GetExistingParameterExpression(parameters, parameterInfo.ParameterType) ??
-                                      Expression.Constant((EventId)0, typeof(EventId)));
-                }
-                else if (parameterInfo.ParameterType == Types.FormattedLogValues)
-                {
-                    logParameters.Add(BuildFormattedLogValuesExpression(expression));
-                }
-                else if (parameterInfo.ParameterType == typeof(Exception))
-                {
-                    logParameters.Add(GetExistingParameterExpression(parameters, parameterInfo.ParameterType) ??
-                                      Expression.Constant(null, typeof(Exception)));
-                }
-                else if (parameterInfo.ParameterType == Types.MessageFormatter)
-                {
-                    logParameters.Add(CreateItIsAnyMethodCallExpression(Types.MessageFormatter));
-                }
-            }
-
-            return logParameters.ToArray();
-        }
-
-        private static MethodCallExpression CreateItIsAnyMethodCallExpression(Type valueType)
-        {
-            return Expression.Call(Methods.ItIsAny.MakeGenericMethod(valueType));
+            return FormattedLogValuesHelpers.Create(formattedLogArguments.First(), formattedLogArguments.Last());
         }
 
         private static Expression? GetLogLevelExpressionFromMethodName(string methodName)
@@ -268,38 +219,18 @@ namespace KISS.Moq.Logger
             return parameters.FirstOrDefault(p => p.Type.IsSubclassOf(type));
         }
 
-        /// <summary>
-        ///     A <see cref="ExpressionVisitor"/> that throws <see cref="InvalidOperationException"/>
-        ///     if any <see cref="MethodCallExpression"/> uses methods in the <see cref="It"/> helper class.
-        /// </summary>
-        private sealed class NoItLogicAllowedExpressionVisitor : ExpressionVisitor
+        private static void VerifyWithExceptionHandling<TLogger>(this Mock<TLogger> mock, Expression<Action<TLogger>> expression,
+                                                                 Times times, string failMessage, Expression<Action<TLogger>> originalExpression)
+            where TLogger : class, ILogger
         {
-            private readonly string _methodName;
-
-            /// <summary>
-            ///     Traverses trough the specified <paramref name="expressions"/> to verify
-            ///     that they are not called with <see cref="It"/> methods.
-            /// </summary>
-            /// <param name="methodName">The name of the method initiating this method.</param>
-            /// <param name="expressions">The <see cref="Expression"/> instances to check.</param>
-            public static void Visit(string methodName, params Expression[] expressions)
+            try
             {
-                new NoItLogicAllowedExpressionVisitor(methodName).Visit(new ReadOnlyCollection<Expression>(expressions));
+                mock.Verify(expression, times, failMessage);
             }
-
-            private NoItLogicAllowedExpressionVisitor(string methodName)
+            catch (MockException e)
+                when (MockExceptionHelpers.IsNoMatchingCalls(e))
             {
-                _methodName = methodName;
-            }
-
-            protected override Expression VisitMethodCall(MethodCallExpression node)
-            {
-                if (node.Method.DeclaringType == typeof(It))
-                {
-                    throw new InvalidOperationException($"{nameof(Moq)} {nameof(It)} methods is not supported while verifying {_methodName}.");
-                }
-
-                return base.VisitMethodCall(node);
+                throw MockExceptionHelpers.CreateNewException(e, mock, originalExpression, times, failMessage);
             }
         }
     }

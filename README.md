@@ -41,8 +41,3 @@ The usage is simple:
 
 > **NOTE:** The `VerifyExt` is only supported on extension methods in the `Microsoft.Extensions.Logging.LoggerExtensions` 
 extension class.
-
-## BUILD
-
-You can build this project in any environment that supports .NET development. If you plan to do changes and
-create pull requests refer to the CONTRIBUTING.md document for how to do this.
